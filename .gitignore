@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Data / secrets
+*.csv
+!data/sample/*.csv
+config.yaml
+.env
+*.log
+
+# IDE
+.vscode/
+.idea/

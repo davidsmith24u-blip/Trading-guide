@@ -1,0 +1,56 @@
+# Copy to config.yaml and fill in your values. NEVER commit config.yaml.
+
+account:
+  currency: USD
+  balance: 10000.0          # starting equity for sizing/backtests
+  risk_per_trade_pct: 0.005 # 0.5% risk per trade (recommended 0.5-1%)
+  max_daily_drawdown_pct: 0.02   # stop trading for the day after -2%
+  max_weekly_drawdown_pct: 0.05  # stop for the week after -5%
+  max_consecutive_losses: 3      # cooldown after 3 losses in a row
+  cooldown_hours: 24             # pause duration after cooldown trigger
+
+pairs:
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - XAUUSD
+
+timeframes:
+  trend: "4H"     # higher timeframe trend filter
+  entry: "15m"    # lower timeframe entry
+
+strategy:
+  trend_ema_fast: 50
+  trend_ema_slow: 200
+  adx_period: 14
+  adx_threshold: 15          # only trade when trend strength >= 15
+  entry_ema: 50
+  rsi_period: 14
+  rsi_long_min: 40           # RSI must be >= 40 for longs
+  rsi_short_max: 60          # RSI must be <= 60 for shorts
+  atr_period: 14
+  stop_atr_mult: 1.5         # stop loss = 1.5 * ATR
+  takeprofit_rr: 2.0         # take profit = 2.0 * risk (R:R)
+  trailing_stop: true
+  breakeven_at_r: 1.0        # move SL to entry after +1R
+
+execution:
+  mode: paper                # paper | live (live not implemented in v1)
+  spread_pips:
+    EURUSD: 1.0
+    GBPUSD: 1.2
+    USDJPY: 1.0
+    XAUUSD: 30.0
+  slippage_pips: 0.5
+
+notifications:
+  telegram:
+    enabled: false
+    bot_token: ""             # from @BotFather
+    chat_id: ""               # your chat id
+  email:
+    enabled: false
+
+logging:
+  trade_log: logs/trades.csv
+  equity_log: logs/equity.csv

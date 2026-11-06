@@ -1,0 +1,12 @@
+# Core
+pandas>=2.0
+numpy>=1.24
+pyyaml>=6.0
+requests>=2.31
+
+# Optional data sources (install as needed)
+yfinance>=0.2.40
+ MetaTrader5>=5.0.45   # Windows only; MT5 terminal required
+
+# Dev / tests
+pytest>=7.4
