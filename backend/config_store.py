@@ -63,6 +63,7 @@ def to_dict(cfg: AppConfig) -> Dict[str, Any]:
             "kill_switch_file": cfg.kill_switch_file,
             "spread_pips": cfg.spreads,
             "slippage_pips": cfg.slippage_pips,
+            "commission_per_lot": cfg.commission_per_lot,
         },
         "mt5": cfg.mt5,
         "notifications": {

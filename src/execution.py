@@ -202,6 +202,9 @@ class PaperBroker(BrokerInterface):
                 pnl_price = (exit_px - pos.entry) if pos.side == 1 else (pos.entry - exit_px)
                 contract = 100000.0
                 pnl = pnl_price * pos.units * contract
+                # commission (per lot, round trip)
+                commission = self.cfg.commission_per_lot * pos.units
+                pnl -= commission
                 risk_price = abs(pos.entry - pos.orig_stop)
                 r_mult = (pnl_price / risk_price) if risk_price > 0 else 0.0
 

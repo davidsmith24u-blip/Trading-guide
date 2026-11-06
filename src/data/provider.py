@@ -64,6 +64,122 @@ def from_yfinance_range(pair: str, start: str, end: str, interval: str = "15m") 
     return validate_ohlcv(df)
 
 
+def from_oanda(pair: str, granularity: str = "M15", count: int = 5000) -> pd.DataFrame:
+    """Fetch candles from OANDA v20 (requires OANDA_API_TOKEN and OANDA_ACCOUNT_ID env)."""
+    import os
+
+    import requests
+
+    token = os.getenv("OANDA_API_TOKEN")
+    account = os.getenv("OANDA_ACCOUNT_ID")
+    if not token:
+        raise RuntimeError("OANDA_API_TOKEN not set")
+    host = os.getenv("OANDA_HOST", "https://api-fxpractice.oanda.com")
+    # OANDA instrument format EUR_USD
+    instrument = pair[:3] + "_" + pair[3:]
+    url = f"{host}/v3/instruments/{instrument}/candles"
+    params = {"granularity": granularity, "count": count, "price": "MBA"}
+    r = requests.get(url, params=params, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+    r.raise_for_status()
+    candles = r.json().get("candles", [])
+    rows = []
+    for c in candles:
+        if not c.get("complete", True):
+            continue
+        mid = c.get("mid", {})
+        rows.append(
+            {
+                "timestamp": c["time"],
+                "open": float(mid["o"]),
+                "high": float(mid["h"]),
+                "low": float(mid["l"]),
+                "close": float(mid["c"]),
+                "volume": float(c.get("volume", 0)),
+            }
+        )
+    if not rows:
+        raise RuntimeError("no oanda data")
+    df = pd.DataFrame(rows)
+    df.index = pd.to_datetime(df["timestamp"])
+    df = df.drop(columns=["timestamp"])
+    return validate_ohlcv(df)
+
+
+def from_alpha_vantage(pair: str, interval: str = "15min", outputsize: str = "full") -> pd.DataFrame:
+    """Fetch FX intraday from Alpha Vantage (requires ALPHA_VANTAGE_API_KEY env)."""
+    import os
+
+    import requests
+
+    key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    if not key:
+        raise RuntimeError("ALPHA_VANTAGE_API_KEY not set")
+    url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "FX_INTRADAY",
+        "from_symbol": pair[:3],
+        "to_symbol": pair[3:],
+        "interval": interval,
+        "outputsize": outputsize,
+        "apikey": key,
+        "datatype": "json",
+    }
+    r = requests.get(url, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    key_name = [k for k in data if "Time Series" in k]
+    if not key_name:
+        raise RuntimeError("alpha vantage error: " + str(data.get("Note") or data.get("Error Message")))
+    ts = data[key_name[0]]
+    rows = []
+    for t, v in ts.items():
+        rows.append(
+            {
+                "timestamp": t,
+                "open": float(v["1. open"]),
+                "high": float(v["2. high"]),
+                "low": float(v["3. low"]),
+                "close": float(v["4. close"]),
+                "volume": 0.0,
+            }
+        )
+    if not rows:
+        raise RuntimeError("no alpha vantage data")
+    df = pd.DataFrame(rows)
+    df.index = pd.to_datetime(df["timestamp"])
+    df = df.drop(columns=["timestamp"])
+    df = df.sort_index()
+    return validate_ohlcv(df)
+
+
+def cache_path(key: str) -> str:
+    import hashlib
+
+    os.makedirs("data/cache", exist_ok=True)
+    h = hashlib.md5(key.encode()).hexdigest()
+    return os.path.join("data", "cache", f"{h}.pkl")
+
+
+def cached_fetch(key: str, fetcher, *args, **kwargs):
+    """Simple disk cache for data frames."""
+    import pickle
+
+    p = cache_path(key)
+    if os.path.exists(p):
+        try:
+            with open(p, "rb") as f:
+                return pickle.load(f)
+        except Exception:
+            pass
+    df = fetcher(*args, **kwargs)
+    try:
+        with open(p, "wb") as f:
+            pickle.dump(df, f)
+    except Exception:
+        pass
+    return df
+
+
 def from_yfinance(pair: str, period: str = "60d", interval: str = "15m") -> pd.DataFrame:
     """Fetch via yfinance. Forex pairs use =X suffix; XAU uses GC=F-ish (approx)."""
     try:

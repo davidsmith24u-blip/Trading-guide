@@ -234,6 +234,20 @@ Configure interval via `SCAN_INTERVAL_MINUTES` env var. Cron example:
 - `POST /journal/{id}/notes` adds notes/tags.
 - Streamlit shows a journal section.
 
+## Data Sources
+
+Providers: `yfinance` (default), `OANDA` (set `OANDA_API_TOKEN`), `Alpha Vantage` (set `ALPHA_VANTAGE_API_KEY`). Simple disk cache available via `cached_fetch`.
+
+## Optimization
+
+```bash
+python scripts/optimize.py
+```
+
+## CI
+
+GitHub Actions runs pytest on push/PR (see `.github/workflows/ci.yml`).
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,

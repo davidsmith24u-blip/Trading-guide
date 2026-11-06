@@ -49,6 +49,7 @@ execution:
     USDJPY: 1.0
     XAUUSD: 30.0
   slippage_pips: 0.5
+  commission_per_lot: 0.0   # USD per lot round-trip (optional)
 
 mt5:
   path: ""                  # path to terminal64.exe (optional)

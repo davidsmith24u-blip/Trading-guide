@@ -242,10 +242,28 @@ if bt:
     eq = bt.get("equity_curve", [])
     if eq:
         edf = pd.DataFrame(eq)
+        edf["peak"] = edf["equity"].cummax()
+        edf["dd"] = (edf["equity"] - edf["peak"]) / edf["peak"] * 100
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=edf["timestamp"], y=edf["equity"], mode="lines", name="Equity"))
-        fig.update_layout(height=400, xaxis_title="Time", yaxis_title="Equity")
+        fig.add_trace(go.Scatter(x=edf["timestamp"], y=edf["dd"], mode="lines", name="Drawdown %", yaxis="y2"))
+        fig.update_layout(
+            height=400,
+            xaxis_title="Time",
+            yaxis_title="Equity",
+            yaxis2=dict(title="Drawdown %", overlaying="y", side="right"),
+        )
         st.plotly_chart(fig, use_container_width=True)
+
+    # trade filter
+    st.subheader("Trades")
+    trades = bt.get("trades", [])
+    if trades:
+        tdf = pd.DataFrame(trades)
+        pair_filter = st.multiselect("Filter pairs", sorted(tdf["pair"].unique()), default=list(tdf["pair"].unique()))
+        if pair_filter:
+            tdf = tdf[tdf["pair"].isin(pair_filter)]
+        st.dataframe(tdf, use_container_width=True, hide_index=True)
 
     st.subheader("Trades")
     trades = bt.get("trades", [])
