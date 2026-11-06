@@ -13,6 +13,7 @@ env/
 config.yaml
 .env
 *.log
+*.db
 
 # IDE
 .vscode/

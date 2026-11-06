@@ -9,9 +9,11 @@ from typing import Any, Dict
 # ensure project root importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from backend.config_store import apply_overrides, load
+from backend.auth import get_current_user
+from backend.config_store import apply_overrides, from_dict, to_dict
+from backend.db import get_user_config, set_user_config
 from backend.schemas import BacktestRequest, BacktestResponse, EquityPoint, TradeOut
 from src.backtest.engine import run_backtest
 from src.data.provider import from_yfinance_range, make_multi_tf_pair
@@ -47,9 +49,15 @@ def _fetch_frames(pair, cfg, req):
 
 
 @router.post("/backtest", response_model=BacktestResponse)
-def run_backtest_endpoint(req: BacktestRequest):
+def run_backtest_endpoint(req: BacktestRequest, current_user=Depends(get_current_user)):
     try:
-        cfg = load()
+        user_cfg = get_user_config(current_user["id"])
+        if user_cfg is None:
+            from backend.config_store import load as load_global
+
+            user_cfg = to_dict(load_global())
+            set_user_config(current_user["id"], user_cfg)
+        cfg = from_dict(user_cfg)
         if req.config_overrides:
             cfg = apply_overrides(cfg, req.config_overrides)
 

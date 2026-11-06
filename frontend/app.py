@@ -12,11 +12,59 @@ import streamlit as st
 API_BASE = os.getenv("API_BASE", "http://localhost:8000")
 PAPER_WARNING = "PAPER TRADING ONLY. Not financial advice."
 
-st.set_page_config(page_title="Trading Guardian", layout="wide")
-st.title("Trading Guardian")
-st.caption(PAPER_WARNING)
 
-# ---------- Sidebar ----------
+def api_headers():
+    token = st.session_state.get("token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def login_screen():
+    st.title("Trading Guardian — Login")
+    st.caption(PAPER_WARNING)
+    tab_login, tab_reg = st.tabs(["Login", "Register"])
+    with tab_login:
+        u = st.text_input("Username", key="li_user")
+        p = st.text_input("Password", type="password", key="li_pass")
+        if st.button("Login"):
+            try:
+                r = requests.post(f"{API_BASE}/login", json={"username": u, "password": p}, timeout=10)
+                if r.ok:
+                    st.session_state["token"] = r.json()["access_token"]
+                    st.session_state["username"] = r.json()["username"]
+                    st.rerun()
+                else:
+                    st.error(r.json().get("detail", "login failed"))
+            except Exception as e:
+                st.error(str(e))
+    with tab_reg:
+        u = st.text_input("Username", key="rg_user")
+        p = st.text_input("Password", type="password", key="rg_pass")
+        if st.button("Register"):
+            try:
+                r = requests.post(f"{API_BASE}/register", json={"username": u, "password": p}, timeout=10)
+                if r.ok:
+                    st.session_state["token"] = r.json()["access_token"]
+                    st.session_state["username"] = r.json()["username"]
+                    st.rerun()
+                else:
+                    st.error(r.json().get("detail", "register failed"))
+            except Exception as e:
+                st.error(str(e))
+
+
+if "token" not in st.session_state:
+    login_screen()
+    st.stop()
+
+# ---------- Authenticated app ----------
+st.set_page_config(page_title="Trading Guardian", layout="wide")
+st.title(f"Trading Guardian — {st.session_state.get('username')}")
+st.caption(PAPER_WARNING)
+if st.sidebar.button("Logout"):
+    for k in ("token", "username", "backtest"):
+        st.session_state.pop(k, None)
+    st.rerun()
+
 with st.sidebar:
     st.header("Controls")
     pairs_input = st.multiselect(
@@ -28,16 +76,13 @@ with st.sidebar:
     daily_dd = st.slider("Max daily drawdown (%)", 1.0, 5.0, 2.0, 0.5) / 100.0
     weekly_dd = st.slider("Max weekly drawdown (%)", 2.0, 10.0, 5.0, 0.5) / 100.0
     n_bars = st.number_input("Synthetic bars (backtest)", 1000, 20000, 8000, 1000)
-
     col1, col2 = st.columns(2)
     run_bt = col1.button("Run Backtest")
     refresh_sig = col2.button("Refresh Signals")
-
     st.divider()
-    st.subheader("Selected pair for chart")
-    chart_pair = st.selectbox("Pair", pairs_input if pairs_input else ["EURUSD"])
+    chart_pair = st.selectbox("Chart pair", pairs_input if pairs_input else ["EURUSD"])
 
-# push config overrides (best effort)
+# sync config
 try:
     requests.post(
         f"{API_BASE}/config",
@@ -49,16 +94,25 @@ try:
                 "max_weekly_drawdown_pct": weekly_dd,
             },
         },
+        headers=api_headers(),
         timeout=5,
     )
 except Exception:
     pass
 
-# ---------- Signals ----------
+# Signals
 st.subheader("Current Signals")
 signals = []
 try:
-    r = requests.get(f"{API_BASE}/signals", params={"pairs": ",".join(pairs_input)}, timeout=10)
+    r = requests.get(
+        f"{API_BASE}/signals",
+        params={"pairs": ",".join(pairs_input)},
+        headers=api_headers(),
+        timeout=10,
+    )
+    if r.status_code == 401:
+        st.session_state.pop("token", None)
+        st.rerun()
     if r.ok:
         signals = r.json().get("signals", [])
 except Exception as e:
@@ -71,16 +125,15 @@ if signals:
 else:
     st.info("No signals returned.")
 
-# ---------- Risk status ----------
+# Risk status
 st.subheader("Risk Status")
 risk = {}
 try:
-    r = requests.get(f"{API_BASE}/risk-status", timeout=5)
+    r = requests.get(f"{API_BASE}/risk-status", headers=api_headers(), timeout=5)
     if r.ok:
         risk = r.json()
 except Exception:
     pass
-
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Equity", f"{risk.get('equity', 0):,.2f}")
 c2.metric("Daily DD", f"{risk.get('daily_drawdown_pct', 0):.2%}")
@@ -88,7 +141,7 @@ c3.metric("Weekly DD", f"{risk.get('weekly_drawdown_pct', 0):.2%}")
 c4.metric("Trading Allowed", "YES" if risk.get("trading_allowed") else "NO")
 st.caption(f"Cooldown: {risk.get('cooldown_until') or 'none'} | {risk.get('reason', '')}")
 
-# ---------- Backtest ----------
+# Backtest
 if run_bt:
     with st.spinner("Running backtest..."):
         payload = {
@@ -103,10 +156,9 @@ if run_bt:
             },
         }
         try:
-            r = requests.post(f"{API_BASE}/backtest", json=payload, timeout=120)
+            r = requests.post(f"{API_BASE}/backtest", json=payload, headers=api_headers(), timeout=180)
             if r.ok:
-                data = r.json()
-                st.session_state["backtest"] = data
+                st.session_state["backtest"] = r.json()
             else:
                 st.error(r.text)
         except Exception as e:
@@ -143,10 +195,15 @@ if bt:
         st.dataframe(tdf, use_container_width=True, hide_index=True)
     st.warning(bt.get("warning", PAPER_WARNING))
 
-# ---------- Candlestick for selected pair ----------
+# Candlestick
 st.subheader(f"Candlestick — {chart_pair}")
 try:
-    r = requests.get(f"{API_BASE}/ohlc", params={"pair": chart_pair, "period": "5d", "interval": "15m"}, timeout=10)
+    r = requests.get(
+        f"{API_BASE}/ohlc",
+        params={"pair": chart_pair, "period": "5d", "interval": "15m"},
+        headers=api_headers(),
+        timeout=10,
+    )
     if r.ok:
         bars = r.json().get("bars", [])
         if bars:

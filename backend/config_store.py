@@ -79,6 +79,18 @@ def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]
     return out
 
 
+def from_dict(data: Dict[str, Any]) -> AppConfig:
+    """Build an AppConfig from a YAML-shaped dict."""
+    import tempfile
+
+    import yaml
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        yaml.safe_dump(data or {}, f, sort_keys=False)
+        path = f.name
+    return load_config(path)
+
+
 def apply_overrides(cfg: AppConfig, overrides: Dict[str, Any]) -> AppConfig:
     """Return a new AppConfig with overrides merged, without persisting."""
     import tempfile

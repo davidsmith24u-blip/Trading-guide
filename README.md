@@ -125,6 +125,26 @@ docker compose up --build
 - `GET /config`, `POST /config` — read/update configuration
 - `GET /ohlc` — OHLC bars for charting
 
+## Authentication & Multi-user (Stage 3)
+
+- Register/login via `/register` and `/login` (JWT).
+- Each user has isolated config, risk state, and backtest results.
+- Passwords hashed with bcrypt; tokens signed with `SECRET_KEY` from env.
+- User data stored in SQLite (`data/trading_guardian.db` by default).
+
+### Local dev
+```bash
+cp .env.example .env   # set SECRET_KEY
+uvicorn backend.main:app --reload --port 8000
+streamlit run frontend/app.py
+```
+
+### Deploy with Docker
+```bash
+cp .env.example .env   # edit secrets
+docker compose up --build
+```
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,

@@ -9,9 +9,11 @@ from typing import Any, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from backend.config_store import load
+from backend.auth import get_current_user
+from backend.config_store import from_dict, to_dict
+from backend.db import get_user_config, set_user_config
 from backend.schemas import SignalOut, SignalsResponse
 from src.data.provider import from_yfinance, make_multi_tf_pair
 from src.indicators import add_indicators
@@ -37,8 +39,14 @@ def _fetch_latest(pair, cfg):
 
 
 @router.get("/signals", response_model=SignalsResponse)
-def get_signals(pairs: str = ""):
-    cfg = load()
+def get_signals(pairs: str = "", current_user=Depends(get_current_user)):
+    user_cfg = get_user_config(current_user["id"])
+    if user_cfg is None:
+        from backend.config_store import load as load_global
+
+        user_cfg = to_dict(load_global())
+        set_user_config(current_user["id"], user_cfg)
+    cfg = from_dict(user_cfg)
     requested = [p.strip().upper() for p in pairs.split(",") if p.strip()] if pairs else cfg.pairs
 
     out = []
