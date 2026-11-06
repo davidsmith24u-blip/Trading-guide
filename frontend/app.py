@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import os
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:
+    pass
+
 import pandas as pd
 import plotly.graph_objects as go
 import requests

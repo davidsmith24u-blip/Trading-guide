@@ -152,6 +152,61 @@ docker compose up --build
 - Streamlit sidebar lets users save/load/delete/switch saved configs.
 - Basic per-IP rate limiting (configurable via `RATE_LIMIT_PER_MINUTE`, default 120).
 
+## Deployment
+
+### Local development (without Docker)
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env       # edit SECRET_KEY at minimum
+uvicorn backend.main:app --reload --port 8000
+# in another terminal:
+streamlit run frontend/app.py
+```
+
+### Local development (with Docker)
+```bash
+cp .env.example .env
+docker compose up --build
+```
+Backend: http://localhost:8000  Frontend: http://localhost:8501
+
+### Deploy to Render
+1. Push repo to GitHub.
+2. Create a new **Web Service** for the backend:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - Env vars: `SECRET_KEY`, `ENVIRONMENT=production`, `DATABASE_PATH=/var/data/trading_guardian.db`, `CORS_ORIGINS=https://your-frontend.onrender.com`
+   - Add a persistent disk mounted at `/var/data` for SQLite.
+3. Create a second **Web Service** for the frontend:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `streamlit run frontend/app.py --server.port $PORT --server.address 0.0.0.0`
+   - Env vars: `API_BASE=https://your-backend.onrender.com`
+
+### Deploy to Railway
+1. Create a project from the GitHub repo.
+2. Add two services: backend and frontend.
+   - Backend start: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - Frontend start: `streamlit run frontend/app.py --server.port $PORT --server.address 0.0.0.0`
+3. Set environment variables in each service (see `.env.example`).
+   - Backend: `SECRET_KEY`, `ENVIRONMENT=production`, `CORS_ORIGINS=https://<frontend-domain>`
+   - Frontend: `API_BASE=https://<backend-domain>`
+
+### Deploy to a VPS with Docker Compose
+```bash
+git clone <your-repo>
+cd Trading-guide
+cp .env.example .env   # edit secrets and CORS_ORIGINS
+docker compose up -d --build
+```
+Put a reverse proxy (Caddy/Nginx) in front for HTTPS. Keep `SECRET_KEY` and Telegram tokens only in `.env` (never commit).
+
+### Keeping secrets secure
+- Never commit `.env` or the SQLite database.
+- Rotate `SECRET_KEY` to invalidate all sessions.
+- Store Telegram bot tokens only in environment variables, never in code or frontend.
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,
