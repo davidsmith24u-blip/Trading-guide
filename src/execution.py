@@ -1,40 +1,27 @@
 """Execution layer.
 
-v1 implements a PAPER broker only: it simulates fills with configurable spread
-and slippage and tracks open positions, closing them when SL/TP is touched.
-Live broker adapters (MT5, OANDA, IBKR) should implement the same interface.
+PaperBroker: simulated fills with spread/slippage.
+MT5Broker lives in src/broker/mt5.py and shares the same interface.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from .broker.base import BrokerInterface, Order, OrderResult, Position
 from .config import AppConfig
 from .indicators import pip_size
 from .risk import RiskManager, TradeResult
 from .strategy import Signal
 
 
-@dataclass
-class Position:
-    pair: str
-    side: int
-    units: float
-    entry: float
-    stop_loss: float
-    take_profit: float
-    orig_stop: float
-    opened_at: pd.Timestamp
-    reason: str
-    atr: float = 0.0
-    risk_pct: float = 0.0
-    position_id: Optional[int] = None
+# Re-export for backwards compatibility
+__all__ = ["PaperBroker", "Position", "TradeResult"]
 
 
-class PaperBroker:
+class PaperBroker(BrokerInterface):
     def __init__(self, cfg: AppConfig, risk: RiskManager, store=None, user_id=None):
         self.cfg = cfg
         self.risk = risk
@@ -62,18 +49,63 @@ class PaperBroker:
                             position_id=row.get("id"),
                         )
                     )
-                    # keep risk in sync
                     self.risk.register_open_position(row.get("risk_pct", cfg.risk.risk_per_trade_pct))
             except Exception:
                 pass
 
+    # ---- BrokerInterface ----
+    def connect(self) -> bool:
+        return True
+
+    def disconnect(self) -> None:
+        pass
+
+    def get_account_info(self) -> Dict[str, Any]:
+        return {"balance": self.risk.state.equity, "equity": self.risk.state.equity, "currency": self.cfg.risk.currency}
+
+    def get_positions(self) -> List[Position]:
+        return list(self.positions)
+
+    def get_open_orders(self) -> List[Order]:
+        return []
+
+    def place_order(self, signal: Signal, size: float) -> OrderResult:
+        pos = self.open_position(signal, pd.Timestamp.utcnow(), 0.0)
+        if pos is None:
+            return OrderResult(success=False, message="blocked by risk/heat")
+        return OrderResult(success=True, ticket=pos.position_id, price=pos.entry)
+
+    def modify_position(self, ticket: Any, sl: float, tp: float) -> bool:
+        for p in self.positions:
+            if p.position_id == ticket:
+                p.stop_loss = sl
+                p.take_profit = tp
+                return True
+        return False
+
+    def close_position(self, ticket: Any, volume: Optional[float] = None) -> bool:
+        # paper close is handled by update(); this is a manual override
+        for p in list(self.positions):
+            if p.position_id == ticket:
+                self.positions.remove(p)
+                self.risk.close_position_risk(p.risk_pct)
+                return True
+        return False
+
+    def get_rates(self, symbol: str, timeframe: str, count: int) -> pd.DataFrame:
+        return pd.DataFrame()
+
+    def is_trading_allowed(self) -> Tuple[bool, str]:
+        return self.risk.trading_allowed()
+
+    # ---- paper simulation helpers (existing) ----
     def _fill_price(self, pair: str, price: float, side: int, is_entry: bool) -> float:
         pip = pip_size(pair)
         spread = self.cfg.spreads.get(pair, 1.0) * pip
         slip = self.cfg.slippage_pips * pip
-        if side == 1:  # long: pay ask
+        if side == 1:
             fill = price + spread / 2 + (slip if is_entry else 0)
-        else:          # short: receive bid
+        else:
             fill = price - spread / 2 - (slip if is_entry else 0)
         return fill
 
@@ -85,13 +117,11 @@ class PaperBroker:
             return None
 
         risk_pct = self.cfg.risk.risk_per_trade_pct
-        allowed, heat_reason = self.risk.can_open_trade(risk_pct)
-        if not allowed:
+        heat_ok, heat_reason = self.risk.can_open_trade(risk_pct)
+        if not heat_ok:
             import logging
 
-            logging.getLogger("trading_guardian").warning(
-                "trade blocked for %s: %s", sig.pair, heat_reason
-            )
+            logging.getLogger("trading_guardian").warning("trade blocked for %s: %s", sig.pair, heat_reason)
             return None
 
         fill = self._fill_price(sig.pair, sig.entry, sig.side, True)
@@ -134,7 +164,6 @@ class PaperBroker:
                 still_open.append(pos)
                 continue
 
-            # trailing / break-even
             risk_price = abs(pos.entry - pos.orig_stop)
             if risk_price > 0:
                 if pos.side == 1:
@@ -163,7 +192,6 @@ class PaperBroker:
                     hit_tp = True
 
             if hit_sl or hit_tp:
-                # conservative: SL wins if both touched
                 if hit_sl:
                     exit_px = self._fill_price(pos.pair, pos.stop_loss, pos.side, False)
                     outcome = "stop_loss"

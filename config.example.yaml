@@ -40,13 +40,25 @@ strategy:
   regime_atr_expansion: 1.1  # require ATR >= 1.1 * its recent average
 
 execution:
-  mode: paper                # paper | live (live not implemented in v1)
+  mode: paper                # paper | mt5_demo | mt5_live
+  confirm_live: false        # must be true to allow mt5_live
+  kill_switch_file: "STOP_TRADING"  # if this file exists, stop trading
   spread_pips:
     EURUSD: 1.0
     GBPUSD: 1.2
     USDJPY: 1.0
     XAUUSD: 30.0
   slippage_pips: 0.5
+
+mt5:
+  path: ""                  # path to terminal64.exe (optional)
+  login: 0
+  password: ""              # prefer env MT5_PASSWORD
+  server: ""
+  magic_number: 202411
+  deviation: 20
+  timeout_ms: 10000
+  symbol_suffix: ""         # broker-specific suffix, e.g. ".m" or "m"
 
 notifications:
   telegram:

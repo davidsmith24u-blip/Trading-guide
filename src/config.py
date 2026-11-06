@@ -57,6 +57,9 @@ class AppConfig:
     spreads: Dict[str, float] = field(default_factory=dict)
     slippage_pips: float = 0.5
     mode: str = "paper"
+    confirm_live: bool = False
+    kill_switch_file: str = "STOP_TRADING"
+    mt5: Dict[str, Any] = field(default_factory=dict)
     telegram_enabled: bool = False
     telegram_token: str = ""
     telegram_chat_id: str = ""
@@ -120,6 +123,10 @@ def load_config(path: str | os.PathLike = "config.yaml") -> AppConfig:
     cfg.mode = ex.get("mode", cfg.mode)
     cfg.spreads = ex.get("spread_pips", cfg.spreads)
     cfg.slippage_pips = float(ex.get("slippage_pips", cfg.slippage_pips))
+    cfg.mt5 = raw.get("mt5", {}) or {}
+    ex = raw.get("execution", {})
+    cfg.confirm_live = bool(ex.get("confirm_live", cfg.confirm_live))
+    cfg.kill_switch_file = ex.get("kill_switch_file", cfg.kill_switch_file)
 
     n = raw.get("notifications", {}).get("telegram", {})
     cfg.telegram_enabled = bool(n.get("enabled", False))

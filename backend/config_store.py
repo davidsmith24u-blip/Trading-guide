@@ -59,9 +59,12 @@ def to_dict(cfg: AppConfig) -> Dict[str, Any]:
         },
         "execution": {
             "mode": cfg.mode,
+            "confirm_live": cfg.confirm_live,
+            "kill_switch_file": cfg.kill_switch_file,
             "spread_pips": cfg.spreads,
             "slippage_pips": cfg.slippage_pips,
         },
+        "mt5": cfg.mt5,
         "notifications": {
             "telegram": {
                 "enabled": cfg.telegram_enabled,

@@ -16,14 +16,17 @@ from src.data.provider import from_yfinance, synthetic_ohlcv
 from src.indicators import add_indicators
 from src.strategy import generate_signals, trend_state
 from src.risk import RiskManager
-from src.execution import PaperBroker
+from src.broker.factory import create_broker
 from src.notify.telegram import send_telegram, format_signal
 
 
 def main():
     cfg = load_config()
     risk = RiskManager(cfg.risk)
-    broker = PaperBroker(cfg, risk)
+    broker = create_broker(cfg, risk)
+    if not broker.connect():
+        print("broker connection failed; aborting")
+        return
 
     for pair in cfg.pairs:
         try:
