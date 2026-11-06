@@ -198,6 +198,7 @@ class MT5Broker(BrokerInterface):
         if not _MT5_AVAILABLE or not self._connected:
             return pd.DataFrame()
         sym = self._symbol(symbol)
+        mt5.symbol_select(sym, True)
         tf = TF_MAP.get(timeframe.lower(), mt5.TIMEFRAME_M15)
         rates = mt5.copy_rates_from_pos(sym, tf, 0, count)
         if rates is None or len(rates) == 0:

@@ -45,7 +45,16 @@ def save_state(state: dict) -> None:
         json.dump(state, f, indent=2, default=str)
 
 
-def fetch(pair, cfg):
+def fetch(pair, cfg, broker=None):
+    # Prefer MT5 rates when running in MT5 mode for consistency with execution.
+    if broker is not None and hasattr(broker, "get_rates") and cfg.mode.startswith("mt5"):
+        try:
+            trend = broker.get_rates(pair, cfg.trend_tf, 500)
+            entry = broker.get_rates(pair, cfg.entry_tf, 2000)
+            if not trend.empty and not entry.empty:
+                return trend, entry
+        except Exception:
+            pass
     try:
         trend = from_yfinance(pair, period="60d", interval=cfg.trend_tf.lower().replace("h", "h"))
         entry = from_yfinance(pair, period="5d", interval=cfg.entry_tf.lower())
@@ -107,7 +116,7 @@ def run_once(cfg, state) -> None:
         alerts.append(f"🔥 Portfolio heat high: {heat:.2%}")
 
     for pair in cfg.pairs:
-        trend, entry = fetch(pair, cfg)
+        trend, entry = fetch(pair, cfg, broker)
         trend_i = add_indicators(trend.copy(), cfg.strategy)
         entry_i = add_indicators(entry.copy(), cfg.strategy)
         sigs = generate_signals(pair, trend_i, entry_i, cfg.strategy)
