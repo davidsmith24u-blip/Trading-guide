@@ -68,6 +68,9 @@ class RiskStatusResponse(BaseModel):
     trading_allowed: bool
     reason: str
     warning: str
+    portfolio_heat_pct: float = 0.0
+    max_portfolio_heat_pct: float = 0.0
+    open_positions_count: int = 0
 
 
 class ConfigResponse(BaseModel):

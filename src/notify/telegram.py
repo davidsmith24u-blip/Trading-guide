@@ -32,15 +32,17 @@ def send_telegram(bot_token: str, chat_id: str, text: str, timeout: int = 10) ->
         return False
 
 
-def format_signal(pair: str, side: int, entry: float, sl: float, tp: float, reason: str) -> str:
+def format_signal(pair: str, side: int, entry: float, sl: float, tp: float, reason: str, portfolio_heat: float = 0.0) -> str:
     direction = "BUY / LONG" if side == 1 else "SELL / SHORT"
     emoji = "🟢" if side == 1 else "🔴"
+    heat_line = f"Portfolio heat: {portfolio_heat:.2%}\n" if portfolio_heat else ""
     return (
         f"{emoji} <b>{direction} {pair}</b>\n"
         f"Entry: {entry:.5f}\n"
         f"Stop Loss: {sl:.5f}\n"
         f"Take Profit: {tp:.5f}\n"
         f"R:R: 1:{2.0:.1f}\n"
+        f"{heat_line}"
         f"Reason: {reason}\n"
         f"<i>Paper trading only. Not financial advice.</i>"
     )

@@ -30,14 +30,42 @@ class Position:
     opened_at: pd.Timestamp
     reason: str
     atr: float = 0.0
+    risk_pct: float = 0.0
+    position_id: Optional[int] = None
 
 
 class PaperBroker:
-    def __init__(self, cfg: AppConfig, risk: RiskManager):
+    def __init__(self, cfg: AppConfig, risk: RiskManager, store=None, user_id=None):
         self.cfg = cfg
         self.risk = risk
+        self.store = store
+        self.user_id = user_id
         self.positions: List[Position] = []
         self.closed: List[TradeResult] = []
+        # load persisted open positions (if any)
+        if store is not None and user_id is not None:
+            try:
+                for row in store.load_open_positions(user_id):
+                    self.positions.append(
+                        Position(
+                            pair=row["pair"],
+                            side=row["side"],
+                            units=row["units"],
+                            entry=row["entry"],
+                            stop_loss=row["stop_loss"],
+                            take_profit=row["take_profit"],
+                            orig_stop=row["orig_stop"],
+                            opened_at=pd.Timestamp(row["opened_at"]),
+                            reason=row.get("reason", ""),
+                            atr=row.get("atr", 0.0),
+                            risk_pct=row.get("risk_pct", cfg.risk.risk_per_trade_pct),
+                            position_id=row.get("id"),
+                        )
+                    )
+                    # keep risk in sync
+                    self.risk.register_open_position(row.get("risk_pct", cfg.risk.risk_per_trade_pct))
+            except Exception:
+                pass
 
     def _fill_price(self, pair: str, price: float, side: int, is_entry: bool) -> float:
         pip = pip_size(pair)
@@ -56,6 +84,16 @@ class PaperBroker:
         if not allowed:
             return None
 
+        risk_pct = self.cfg.risk.risk_per_trade_pct
+        allowed, heat_reason = self.risk.can_open_trade(risk_pct)
+        if not allowed:
+            import logging
+
+            logging.getLogger("trading_guardian").warning(
+                "trade blocked for %s: %s", sig.pair, heat_reason
+            )
+            return None
+
         fill = self._fill_price(sig.pair, sig.entry, sig.side, True)
         units = self.risk.position_size(sig.pair, fill, sig.stop_loss)
         if units <= 0:
@@ -72,8 +110,16 @@ class PaperBroker:
             opened_at=now,
             reason=sig.reason,
             atr=atr,
+            risk_pct=risk_pct,
         )
         self.positions.append(pos)
+        self.risk.register_open_position(risk_pct)
+        if self.store is not None and self.user_id is not None:
+            try:
+                pid = self.store.save_open_position(self.user_id, pos)
+                pos.position_id = pid
+            except Exception:
+                pass
         return pos
 
     def update(self, pair: str, bar: pd.Series, now: pd.Timestamp, strategy_cfg=None) -> List[TradeResult]:
@@ -147,6 +193,12 @@ class PaperBroker:
                 )
                 self.closed.append(tr)
                 self.risk.record_trade(tr, now.to_pydatetime() if hasattr(now, "to_pydatetime") else now)
+                self.risk.close_position_risk(pos.risk_pct)
+                if self.store is not None and pos.position_id is not None:
+                    try:
+                        self.store.delete_open_position(pos.position_id)
+                    except Exception:
+                        pass
                 closed_now.append(tr)
             else:
                 still_open.append(pos)

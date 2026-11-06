@@ -192,12 +192,13 @@ try:
         risk = r.json()
 except Exception:
     pass
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Equity", f"{risk.get('equity', 0):,.2f}")
 c2.metric("Daily DD", f"{risk.get('daily_drawdown_pct', 0):.2%}")
 c3.metric("Weekly DD", f"{risk.get('weekly_drawdown_pct', 0):.2%}")
-c4.metric("Trading Allowed", "YES" if risk.get("trading_allowed") else "NO")
-st.caption(f"Cooldown: {risk.get('cooldown_until') or 'none'} | {risk.get('reason', '')}")
+c4.metric("Portfolio Heat", f"{risk.get('portfolio_heat_pct', 0):.2%} / {risk.get('max_portfolio_heat_pct', 0):.2%}")
+c5.metric("Trading Allowed", "YES" if risk.get("trading_allowed") else "NO")
+st.caption(f"Open positions: {risk.get('open_positions_count', 0)} | Cooldown: {risk.get('cooldown_until') or 'none'} | {risk.get('reason', '')}")
 
 # Backtest
 if run_bt:

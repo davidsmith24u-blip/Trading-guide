@@ -8,6 +8,7 @@ account:
   max_weekly_drawdown_pct: 0.05  # stop for the week after -5%
   max_consecutive_losses: 3      # cooldown after 3 losses in a row
   cooldown_hours: 24             # pause duration after cooldown trigger
+  max_portfolio_heat_pct: 0.025  # total open risk across all pairs (2.5%)
 
 pairs:
   - EURUSD

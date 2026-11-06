@@ -51,12 +51,12 @@ def main():
         atr = float(entry_i["atr"].iloc[-1])
         pos = broker.open_position(last, entry_i.index[-1], atr)
         if pos is None:
-            print(f"{pair}: signal not traded (risk/cooldown/drawdown)")
+            print(f"{pair}: signal not traded (risk/cooldown/drawdown/heat)")
             continue
 
-        print(f"{pair}: {last.reason} -> units={pos.units}")
+        print(f"{pair}: {last.reason} -> units={pos.units} heat={risk.portfolio_heat():.2%}")
         if cfg.telegram_enabled:
-            msg = format_signal(pair, last.side, pos.entry, pos.stop_loss, pos.take_profit, last.reason)
+            msg = format_signal(pair, last.side, pos.entry, pos.stop_loss, pos.take_profit, last.reason, risk.portfolio_heat())
             send_telegram(cfg.telegram_token, cfg.telegram_chat_id, msg)
 
     print("equity:", risk.state.equity)

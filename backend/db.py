@@ -50,6 +50,28 @@ def init_db() -> None:
         if "role" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
 
+        # open positions table
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS open_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                pair TEXT NOT NULL,
+                side INTEGER NOT NULL,
+                units REAL NOT NULL,
+                entry REAL NOT NULL,
+                stop_loss REAL NOT NULL,
+                take_profit REAL NOT NULL,
+                orig_stop REAL NOT NULL,
+                opened_at TEXT NOT NULL,
+                reason TEXT,
+                atr REAL NOT NULL,
+                risk_pct REAL NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            """
+        )
+
 
 def _user_count() -> int:
     with _conn() as conn:
@@ -150,3 +172,68 @@ def count_configs() -> int:
 def count_saved_configs() -> int:
     with _conn() as conn:
         return int(conn.execute("SELECT COUNT(*) AS c FROM user_saved_configs").fetchone()["c"])
+
+
+# ---- open positions (paper) ----
+def init_open_positions_table() -> None:
+    with _conn() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS open_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                pair TEXT NOT NULL,
+                side INTEGER NOT NULL,
+                units REAL NOT NULL,
+                entry REAL NOT NULL,
+                stop_loss REAL NOT NULL,
+                take_profit REAL NOT NULL,
+                orig_stop REAL NOT NULL,
+                opened_at TEXT NOT NULL,
+                reason TEXT,
+                atr REAL NOT NULL,
+                risk_pct REAL NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            """
+        )
+
+
+def save_open_position(user_id: int, pos) -> int:
+    init_open_positions_table()
+    with _conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO open_positions
+            (user_id, pair, side, units, entry, stop_loss, take_profit, orig_stop, opened_at, reason, atr, risk_pct)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                user_id,
+                pos.pair,
+                pos.side,
+                pos.units,
+                pos.entry,
+                pos.stop_loss,
+                pos.take_profit,
+                pos.orig_stop,
+                str(pos.opened_at),
+                pos.reason,
+                pos.atr,
+                pos.risk_pct,
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def load_open_positions(user_id: int) -> list:
+    init_open_positions_table()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM open_positions WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_open_position(position_id: int) -> None:
+    init_open_positions_table()
+    with _conn() as conn:
+        conn.execute("DELETE FROM open_positions WHERE id = ?", (position_id,))

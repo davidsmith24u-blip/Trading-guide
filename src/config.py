@@ -23,6 +23,7 @@ class RiskConfig:
     max_weekly_drawdown_pct: float = 0.05
     max_consecutive_losses: int = 3
     cooldown_hours: int = 24
+    max_portfolio_heat_pct: float = 0.025  # total open risk across all pairs
 
 
 @dataclass
@@ -83,6 +84,7 @@ def load_config(path: str | os.PathLike = "config.yaml") -> AppConfig:
         max_weekly_drawdown_pct=float(acc.get("max_weekly_drawdown_pct", cfg.risk.max_weekly_drawdown_pct)),
         max_consecutive_losses=int(acc.get("max_consecutive_losses", cfg.risk.max_consecutive_losses)),
         cooldown_hours=int(acc.get("cooldown_hours", cfg.risk.cooldown_hours)),
+        max_portfolio_heat_pct=float(acc.get("max_portfolio_heat_pct", cfg.risk.max_portfolio_heat_pct)),
     )
 
     cfg.pairs = raw.get("pairs", cfg.pairs)

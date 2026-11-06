@@ -35,6 +35,7 @@ def to_dict(cfg: AppConfig) -> Dict[str, Any]:
             "max_weekly_drawdown_pct": cfg.risk.max_weekly_drawdown_pct,
             "max_consecutive_losses": cfg.risk.max_consecutive_losses,
             "cooldown_hours": cfg.risk.cooldown_hours,
+            "max_portfolio_heat_pct": cfg.risk.max_portfolio_heat_pct,
         },
         "pairs": cfg.pairs,
         "timeframes": {"trend": cfg.trend_tf, "entry": cfg.entry_tf},

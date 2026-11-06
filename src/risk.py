@@ -51,13 +51,15 @@ class RiskState:
 
 
 class RiskManager:
-    def __init__(self, cfg: RiskConfig):
+    def __init__(self, cfg: RiskConfig, open_risk_pcts: Optional[list] = None):
         self.cfg = cfg
         self.state = RiskState(
             equity=cfg.balance,
             day_start_equity=cfg.balance,
             week_start_equity=cfg.balance,
         )
+        # open risk contributions (fraction of equity) per open position
+        self.open_risks: list[float] = list(open_risk_pcts or [])
 
     # ------------------------------------------------------------------ #
     # Calendar / drawdown bookkeeping
@@ -138,6 +140,31 @@ class RiskManager:
         # safety cap: never more than 10 lots for a retail account
         lots = min(lots, 10.0)
         return round(max(lots, 0.0), 4)
+
+    # ------------------------------------------------------------------ #
+    # Portfolio heat (total open risk across all pairs)
+    # ------------------------------------------------------------------ #
+    def portfolio_heat(self) -> float:
+        return float(sum(self.open_risks))
+
+    def can_open_trade(self, risk_pct: float) -> tuple[bool, str]:
+        new_heat = self.portfolio_heat() + float(risk_pct)
+        if new_heat > self.cfg.max_portfolio_heat_pct:
+            return False, (
+                f"portfolio heat limit exceeded: {new_heat:.3%} > "
+                f"{self.cfg.max_portfolio_heat_pct:.3%}"
+            )
+        return True, "ok"
+
+    def register_open_position(self, risk_pct: float) -> None:
+        self.open_risks.append(float(risk_pct))
+
+    def close_position_risk(self, risk_pct: float) -> None:
+        # remove one matching contribution
+        for i in range(len(self.open_risks) - 1, -1, -1):
+            if abs(self.open_risks[i] - risk_pct) < 1e-9:
+                del self.open_risks[i]
+                return
 
     # ------------------------------------------------------------------ #
     # Trade accounting
