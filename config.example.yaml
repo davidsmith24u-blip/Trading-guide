@@ -42,6 +42,7 @@ strategy:
 execution:
   mode: paper                # paper | mt5_demo | mt5_live
   confirm_live: false        # must be true to allow mt5_live
+  live_confirmed: false      # separate confirmation flag for live
   kill_switch_file: "STOP_TRADING"  # if this file exists, stop trading
   spread_pips:
     EURUSD: 1.0

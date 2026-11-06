@@ -283,6 +283,14 @@ python scripts/optimize.py
 
 GitHub Actions runs pytest on push/PR (see `.github/workflows/ci.yml`).
 
+## MT5 Live Trading (Demo-First)
+
+- Set `execution.mode: mt5_demo` and configure `mt5` section (or env `MT5_PASSWORD`).
+- `mt5_live` requires `live_confirmed: true` + `CONFIRM_LIVE=true` env.
+- Kill switch: create `STOP_TRADING` file to halt and close all positions for the magic number.
+- Reconciliation runs each cycle; mismatches are alerted via Telegram.
+- Broker status endpoint: `GET /broker-status`.
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,

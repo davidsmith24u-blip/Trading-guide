@@ -111,10 +111,10 @@ class MT5Broker(BrokerInterface):
             return False, "kill switch active"
         mode = self.cfg.mode
         if mode == "mt5_live":
-            confirm = self.cfg.confirm_live
-            # config stored under execution? check cfg.mt5? We'll check env
-            if not (os.getenv("CONFIRM_LIVE", "").lower() == "true" or confirm):
-                return False, "live mode not confirmed"
+            confirm = self.cfg.confirm_live or self.cfg.live_confirmed
+            env_confirm = os.getenv("CONFIRM_LIVE", "").lower() == "true" or os.getenv("LIVE_CONFIRMED", "").lower() == "true"
+            if not (env_confirm or confirm):
+                return False, "live mode not confirmed (set live_confirmed + env)"
         ti = mt5.terminal_info()
         if ti is None or not getattr(ti, "connected", False):
             return False, "terminal disconnected"
@@ -326,3 +326,49 @@ class MT5Broker(BrokerInterface):
             logger.error("close failed: %s", result)
             return False
         return True
+
+    # ---- kill switch ----
+    def activate_kill_switch(self) -> int:
+        """Close all positions for this magic number. Returns count closed."""
+        closed = 0
+        for p in list(self.get_positions()):
+            if self.close_position(p.position_id):
+                closed += 1
+        # create kill-switch file
+        try:
+            with open(self.kill_switch_file, "w") as f:
+                f.write("activated")
+        except Exception:
+            pass
+        logger.critical("kill switch activated, closed %d positions", closed)
+        return closed
+
+    def watchdog(self) -> Tuple[bool, str]:
+        if not _MT5_AVAILABLE or not self._connected:
+            return False, "not connected"
+        ti = mt5.terminal_info()
+        if ti is None:
+            return False, "terminal info unavailable"
+        if not getattr(ti, "connected", False):
+            return False, "terminal disconnected"
+        return True, "ok"
+
+    def reconcile(self, expected_tickets: List[Any]) -> Dict[str, Any]:
+        """Compare expected tickets vs actual broker positions."""
+        actual = [p.position_id for p in self.get_positions()]
+        missing = [t for t in expected_tickets if t not in actual]
+        unexpected = [t for t in actual if t not in expected_tickets]
+        return {"expected": expected_tickets, "actual": actual, "missing": missing, "unexpected": unexpected}
+
+    def status(self) -> Dict[str, Any]:
+        allowed, reason = self.is_trading_allowed()
+        info = self.get_account_info()
+        return {
+            "mode": self.cfg.mode,
+            "connected": self._connected,
+            "trading_allowed": allowed,
+            "reason": reason,
+            "account": info,
+            "positions": len(self.get_positions()),
+            "kill_switch": self._kill_switch_active(),
+        }

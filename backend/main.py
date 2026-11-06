@@ -25,7 +25,7 @@ from starlette.responses import JSONResponse
 
 from backend.db import init_db
 from backend.rate_limit import RateLimitMiddleware
-from backend.routers import admin, auth, backtest, config, journal, ohlc, positions, risk, saved_configs, signals
+from backend.routers import admin, auth, backtest, broker, config, journal, ohlc, positions, risk, saved_configs, signals
 
 # ---- environment validation ----
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -89,6 +89,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 # ---- routers ----
 app.include_router(auth.router, tags=["auth"])
+app.include_router(broker.router, tags=["broker"])
 app.include_router(backtest.router, tags=["backtest"])
 app.include_router(signals.router, tags=["signals"])
 app.include_router(risk.router, tags=["risk"])

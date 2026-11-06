@@ -59,6 +59,7 @@ class AppConfig:
     commission_per_lot: float = 0.0
     mode: str = "paper"
     confirm_live: bool = False
+    live_confirmed: bool = False
     kill_switch_file: str = "STOP_TRADING"
     mt5: Dict[str, Any] = field(default_factory=dict)
     telegram_enabled: bool = False
@@ -128,6 +129,7 @@ def load_config(path: str | os.PathLike = "config.yaml") -> AppConfig:
     cfg.mt5 = raw.get("mt5", {}) or {}
     ex = raw.get("execution", {})
     cfg.confirm_live = bool(ex.get("confirm_live", cfg.confirm_live))
+    cfg.live_confirmed = bool(ex.get("live_confirmed", cfg.live_confirmed))
     cfg.kill_switch_file = ex.get("kill_switch_file", cfg.kill_switch_file)
 
     n = raw.get("notifications", {}).get("telegram", {})
