@@ -105,7 +105,7 @@ def generate_signals(
         (trend_df["adx"] >= cfg.regime_adx_threshold)
         & (trend_df["atr"] >= atr_ma * cfg.regime_atr_expansion)
     ).fillna(False)
-    regime_aligned = regime_ok_series.reindex(entry_df.index, method="ffill").shift(1).fillna(False)
+    regime_aligned = regime_ok_series.reindex(entry_df.index, method="ffill").shift(1).fillna(False).astype(bool)
 
     signals: list[Signal] = []
     ps = pip_size(pair)
