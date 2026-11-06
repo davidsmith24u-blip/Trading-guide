@@ -23,6 +23,10 @@ No machine learning. Every rule is a plain boolean you can read and change.
 
 from __future__ import annotations
 
+import pandas as pd
+
+pd.set_option("future.no_silent_downcasting", True)
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -104,7 +108,7 @@ def generate_signals(
     regime_ok_series = (
         (trend_df["adx"] >= cfg.regime_adx_threshold)
         & (trend_df["atr"] >= atr_ma * cfg.regime_atr_expansion)
-    ).fillna(False)
+    ).fillna(False).astype(bool)
     regime_aligned = regime_ok_series.reindex(entry_df.index, method="ffill").shift(1).fillna(False).astype(bool)
 
     signals: list[Signal] = []
