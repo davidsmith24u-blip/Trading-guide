@@ -134,12 +134,15 @@ class MT5Broker(BrokerInterface):
         info = mt5.symbol_info(symbol) if _MT5_AVAILABLE else None
         if info is None:
             return volume
-        vmin = info.volume_min
-        vmax = info.volume_max
-        step = info.volume_step
+        vmin = info.volume_min or 0.01
+        vmax = info.volume_max or 100.0
+        step = info.volume_step or 0.01
         if step and step > 0:
             volume = round(round(volume / step) * step, 8)
         volume = max(vmin, min(vmax, volume))
+        # snap to step
+        if step and step > 0:
+            volume = round(round(volume / step) * step, 8)
         return volume
 
     # ---- account / positions ----
@@ -237,28 +240,46 @@ class MT5Broker(BrokerInterface):
         sl = signal.stop_loss
         tp = signal.take_profit
 
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": volume,
-            "type": order_type,
-            "price": price_val,
-            "sl": sl,
-            "tp": tp,
-            "deviation": self.deviation,
-            "magic": self.magic,
-            "comment": "trading-guardian",
-            "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
+        filling_modes = [mt5.ORDER_FILLING_IOC]
+        try:
+            filling_modes.append(mt5.ORDER_FILLING_FOK)
+        except Exception:
+            pass
+        try:
+            filling_modes.append(mt5.ORDER_FILLING_RETURN)
+        except Exception:
+            pass
 
-        logger.info("sending order: %s", request)
-        result = mt5.order_send(request)
+        result = None
+        for fm in filling_modes:
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": order_type,
+                "price": price_val,
+                "sl": sl,
+                "tp": tp,
+                "deviation": self.deviation,
+                "magic": self.magic,
+                "comment": "trading-guardian",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": fm,
+            }
+            logger.info("sending order (filling=%s): %s", fm, request)
+            result = mt5.order_send(request)
+            if result is None:
+                logger.error("order_send returned None: %s", mt5.last_error())
+                break
+            logger.info("order result: retcode=%s comment=%s", result.retcode, result.comment)
+            if result.retcode == mt5.TRADE_RETCODE_DONE:
+                break
+            # retry on invalid filling
+            if result.retcode not in (mt5.TRADE_RETCODE_INVALID_FILL, getattr(mt5, "TRADE_RETCODE_INVALID_FILL", 10030)):
+                break
+
         if result is None:
-            logger.error("order_send returned None: %s", mt5.last_error())
             return OrderResult(success=False, message=str(mt5.last_error()))
-
-        logger.info("order result: retcode=%s comment=%s", result.retcode, result.comment)
         if result.retcode != mt5.TRADE_RETCODE_DONE:
             return OrderResult(success=False, ticket=result.order, message=f"retcode {result.retcode}: {result.comment}", raw=result)
 
