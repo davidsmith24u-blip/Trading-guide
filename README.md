@@ -285,16 +285,28 @@ GitHub Actions runs pytest on push/PR (see `.github/workflows/ci.yml`).
 
 ## MT5 Live Trading (Demo-First)
 
-- Set `execution.mode: mt5_demo` and configure `mt5` section (or env `MT5_PASSWORD`).
+### Python version note
+The `MetaTrader5` package supports Python 3.8–3.11. Use Python 3.11 for MT5 mode
+(the rest of the project works on 3.11+).
+
+### Demo testing steps
+1. Install MT5 terminal and log into a demo account.
+2. Enable **Algo Trading** (toolbar button) in the terminal.
+3. Install deps: `pip install -r requirements.txt MetaTrader5`
+4. Set `execution.mode: mt5_demo`, configure `mt5` section (`symbol_suffix` often `m`).
+5. Set `MT5_PASSWORD` env var (or config).
+6. Run: `python scripts/run_live.py` (or runner).
+7. Verify rates, positions, and a test order on demo before enabling live.
+
+### Safety
 - `mt5_live` requires `live_confirmed: true` + `CONFIRM_LIVE=true` env.
-- Kill switch: create `STOP_TRADING` file to halt and close all positions for the magic number.
-- Reconciliation runs each cycle; mismatches are alerted via Telegram.
-- Broker status endpoint: `GET /broker-status`.
+- Kill switch: create `STOP_TRADING` file to halt and close positions.
+- Reconciliation runs each cycle; mismatches alert via Telegram.
 
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,
   slippage and commission.
 - Overfitting is easy: keep rules simple and validate out-of-sample.
-- This project ships a paper broker only. No live order routing is implemented.
+- Live trading is supported via MT5 in demo-first mode; enable algo trading in the terminal.
 - Past performance does not predict future results.
