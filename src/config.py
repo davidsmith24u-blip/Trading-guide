@@ -41,6 +41,10 @@ class StrategyConfig:
     takeprofit_rr: float = 2.0
     trailing_stop: bool = True
     breakeven_at_r: float = 1.0
+    # regime filter (additional, transparent)
+    regime_adx_threshold: float = 25.0
+    regime_atr_lookback: int = 20
+    regime_atr_expansion: float = 1.1
 
 
 @dataclass
@@ -107,6 +111,9 @@ def load_config(path: str | os.PathLike = "config.yaml") -> AppConfig:
         takeprofit_rr=float(s.get("takeprofit_rr", cfg.strategy.takeprofit_rr)),
         trailing_stop=bool(s.get("trailing_stop", cfg.strategy.trailing_stop)),
         breakeven_at_r=float(s.get("breakeven_at_r", cfg.strategy.breakeven_at_r)),
+        regime_adx_threshold=float(s.get("regime_adx_threshold", cfg.strategy.regime_adx_threshold)),
+        regime_atr_lookback=int(s.get("regime_atr_lookback", cfg.strategy.regime_atr_lookback)),
+        regime_atr_expansion=float(s.get("regime_atr_expansion", cfg.strategy.regime_atr_expansion)),
     )
 
     ex = raw.get("execution", {})

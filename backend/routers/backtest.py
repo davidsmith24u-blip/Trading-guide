@@ -92,6 +92,28 @@ def run_backtest_endpoint(req: BacktestRequest, current_user=Depends(get_current
                     reason=t.reason,
                 )
             )
+        if req.log_journal:
+            from backend.db import log_trade
+
+            for t in result["trades"]:
+                log_trade(
+                    current_user["id"],
+                    {
+                        "pair": t.pair,
+                        "side": t.side,
+                        "entry": t.entry,
+                        "exit_price": t.exit_price,
+                        "stop_loss": t.stop_loss,
+                        "take_profit": t.take_profit,
+                        "units": t.units,
+                        "pnl": t.pnl,
+                        "r_multiple": t.r_multiple,
+                        "opened_at": str(t.opened_at),
+                        "closed_at": str(t.closed_at),
+                        "reason": t.reason,
+                    },
+                    source="backtest",
+                )
         return BacktestResponse(
             metrics=m, equity_curve=equity_points, trades=trades, warning=PAPER_WARNING
         )

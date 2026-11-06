@@ -53,6 +53,9 @@ def to_dict(cfg: AppConfig) -> Dict[str, Any]:
             "takeprofit_rr": cfg.strategy.takeprofit_rr,
             "trailing_stop": cfg.strategy.trailing_stop,
             "breakeven_at_r": cfg.strategy.breakeven_at_r,
+            "regime_adx_threshold": cfg.strategy.regime_adx_threshold,
+            "regime_atr_lookback": cfg.strategy.regime_atr_lookback,
+            "regime_atr_expansion": cfg.strategy.regime_atr_expansion,
         },
         "execution": {
             "mode": cfg.mode,

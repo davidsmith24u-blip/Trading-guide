@@ -288,6 +288,19 @@ if wf:
     st.write("Consistency:")
     st.json(wf.get("consistency", {}))
 
+# Trade Journal
+st.subheader("Trade Journal")
+try:
+    r = requests.get(f"{API_BASE}/journal", params={"limit": 50}, headers=api_headers(), timeout=10)
+    if r.ok:
+        jd = r.json()
+        st.write("Stats:", jd.get("stats", {}))
+        jdf = pd.DataFrame(jd.get("items", []))
+        if not jdf.empty:
+            st.dataframe(jdf, use_container_width=True, hide_index=True)
+except Exception as e:
+    st.info(f"Journal unavailable: {e}")
+
 # Candlestick
 st.subheader(f"Candlestick — {chart_pair}")
 try:

@@ -13,6 +13,7 @@ class BacktestRequest(BaseModel):
     end: Optional[str] = None
     n_bars: Optional[int] = None  # override number of synthetic bars
     config_overrides: Optional[Dict[str, Any]] = None
+    log_journal: bool = False
 
 
 class EquityPoint(BaseModel):

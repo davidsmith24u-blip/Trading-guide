@@ -43,6 +43,25 @@ def init_db() -> None:
                 UNIQUE(user_id, name),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS trade_journal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                source TEXT NOT NULL DEFAULT 'paper',
+                pair TEXT NOT NULL,
+                side INTEGER NOT NULL,
+                entry REAL NOT NULL,
+                exit_price REAL NOT NULL,
+                stop_loss REAL NOT NULL,
+                take_profit REAL NOT NULL,
+                units REAL NOT NULL,
+                pnl REAL NOT NULL,
+                r_multiple REAL NOT NULL,
+                opened_at TEXT NOT NULL,
+                closed_at TEXT NOT NULL,
+                reason TEXT,
+                tags TEXT,
+                notes TEXT
+            );
             """
         )
         # migrate older databases that lack the role column
@@ -237,3 +256,83 @@ def delete_open_position(position_id: int) -> None:
     init_open_positions_table()
     with _conn() as conn:
         conn.execute("DELETE FROM open_positions WHERE id = ?", (position_id,))
+
+
+# ---- trade journal ----
+def log_trade(user_id, trade: dict, source: str = "paper", notes: str = "", tags: str = "") -> int:
+    with _conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO trade_journal
+            (user_id, source, pair, side, entry, exit_price, stop_loss, take_profit, units, pnl, r_multiple, opened_at, closed_at, reason, tags, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                user_id,
+                source,
+                trade["pair"],
+                trade["side"],
+                trade["entry"],
+                trade["exit_price"],
+                trade["stop_loss"],
+                trade["take_profit"],
+                trade["units"],
+                trade["pnl"],
+                trade["r_multiple"],
+                str(trade["opened_at"]),
+                str(trade["closed_at"]),
+                trade.get("reason", ""),
+                tags,
+                notes,
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def list_trades(user_id=None, limit: int = 100, source: str = None) -> list:
+    with _conn() as conn:
+        q = "SELECT * FROM trade_journal"
+        params = []
+        conds = []
+        if user_id is not None:
+            conds.append("user_id = ?")
+            params.append(user_id)
+        if source is not None:
+            conds.append("source = ?")
+            params.append(source)
+        if conds:
+            q += " WHERE " + " AND ".join(conds)
+        q += " ORDER BY closed_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(q, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_trade_journal(trade_id: int, notes: str = None, tags: str = None) -> bool:
+    with _conn() as conn:
+        fields = []
+        params = []
+        if notes is not None:
+            fields.append("notes = ?")
+            params.append(notes)
+        if tags is not None:
+            fields.append("tags = ?")
+            params.append(tags)
+        if not fields:
+            return False
+        params.append(trade_id)
+        cur = conn.execute(f"UPDATE trade_journal SET {', '.join(fields)} WHERE id = ?", params)
+        return cur.rowcount > 0
+
+
+def trade_stats(user_id=None, source: str = None) -> dict:
+    trades = list_trades(user_id=user_id, limit=10000, source=source)
+    if not trades:
+        return {"n_trades": 0, "win_rate": 0.0, "total_pnl": 0.0, "avg_r": 0.0}
+    pnls = [t["pnl"] for t in trades]
+    rs = [t["r_multiple"] for t in trades]
+    wins = [p for p in pnls if p > 0]
+    return {
+        "n_trades": len(trades),
+        "win_rate": len(wins) / len(trades),
+        "total_pnl": sum(pnls),
+        "avg_r": sum(rs) / len(rs),
+    }

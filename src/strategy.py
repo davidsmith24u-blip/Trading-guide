@@ -96,10 +96,16 @@ def generate_signals(
 
     # Align higher-TF trend onto entry index: use last completed trend bar.
     t_trend = higher_trend(trend_df, cfg)
-    # reindex to entry with forward fill (no lookahead: shift trend by one bar)
     aligned = t_trend.reindex(entry_df.index, method="ffill")
-    # avoid lookahead: a trend bar is only known after it closes; shift one entry bar
     aligned = aligned.shift(1).fillna(0).astype(int)
+
+    # Regime filter series (additional, transparent): clear trend + expanding ATR
+    atr_ma = trend_df["atr"].rolling(cfg.regime_atr_lookback).mean()
+    regime_ok_series = (
+        (trend_df["adx"] >= cfg.regime_adx_threshold)
+        & (trend_df["atr"] >= atr_ma * cfg.regime_atr_expansion)
+    ).fillna(False)
+    regime_aligned = regime_ok_series.reindex(entry_df.index, method="ffill").shift(1).fillna(False)
 
     signals: list[Signal] = []
     ps = pip_size(pair)
@@ -109,6 +115,8 @@ def generate_signals(
         if not np.isfinite(atr_val) or atr_val <= 0:
             continue
         trend = int(aligned.iloc[i])
+        if not bool(regime_aligned.iloc[i]):
+            continue  # no-trade zone (choppy / non-expanding)
         close = float(row["close"])
         rsi_val = float(row["rsi"])
         ema_entry = float(row["ema_entry"])
@@ -118,11 +126,11 @@ def generate_signals(
         if trend == 1 and close > ema_entry and rsi_val >= cfg.rsi_long_min:
             if _bullish_trigger(entry_df, i):
                 side = 1
-                reason = "HTF uptrend + pullback reclaim + bullish PA trigger"
+                reason = "HTF uptrend + regime ok + pullback reclaim + bullish PA trigger"
         elif trend == -1 and close < ema_entry and rsi_val <= cfg.rsi_short_max:
             if _bearish_trigger(entry_df, i):
                 side = -1
-                reason = "HTF downtrend + pullback rejection + bearish PA trigger"
+                reason = "HTF downtrend + regime ok + pullback rejection + bearish PA trigger"
 
         if side == 0:
             continue
@@ -155,3 +163,21 @@ def trend_state(trend_df: pd.DataFrame, cfg: StrategyConfig) -> int:
         return 0
     t = higher_trend(trend_df, cfg)
     return int(t.iloc[-1])
+
+
+def regime_filter_reason(trend_df: pd.DataFrame, cfg: StrategyConfig) -> tuple[bool, str]:
+    """Transparent regime check: returns (ok, reason)."""
+    if trend_df.empty:
+        return False, "regime: no trend data"
+    last = trend_df.iloc[-1]
+    adx_val = float(last.get("adx", 0.0))
+    atr_val = float(last.get("atr", 0.0))
+    atr_ma = float(trend_df["atr"].tail(cfg.regime_atr_lookback).mean())
+    if adx_val < cfg.regime_adx_threshold:
+        return False, f"regime rejected: ADX {adx_val:.1f} < {cfg.regime_adx_threshold}"
+    if atr_ma <= 0 or atr_val < atr_ma * cfg.regime_atr_expansion:
+        return False, (
+            f"regime rejected: ATR {atr_val:.5f} < {atr_ma * cfg.regime_atr_expansion:.5f} "
+            f"(not expanding)"
+        )
+    return True, "regime ok"

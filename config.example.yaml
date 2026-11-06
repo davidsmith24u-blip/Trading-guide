@@ -34,6 +34,10 @@ strategy:
   takeprofit_rr: 2.0         # take profit = 2.0 * risk (R:R)
   trailing_stop: true
   breakeven_at_r: 1.0        # move SL to entry after +1R
+  # regime filter (additional)
+  regime_adx_threshold: 25   # no-trade if ADX below this
+  regime_atr_lookback: 20    # ATR average window
+  regime_atr_expansion: 1.1  # require ATR >= 1.1 * its recent average
 
 execution:
   mode: paper                # paper | live (live not implemented in v1)

@@ -14,6 +14,8 @@ config.yaml
 .env
 *.log
 *.db
+runner_state.json
+data/runner_state.json
 
 # IDE
 .vscode/

@@ -216,6 +216,24 @@ python scripts/run_walk_forward.py --train-days 180 --test-days 60 --step-days 6
 ```
 Or via API: `POST /walk-forward` and Streamlit button.
 
+## Background Runner
+
+```bash
+python scripts/runner.py          # continuous (every SCAN_INTERVAL_MINUTES)
+python scripts/runner.py --once   # single scan (cron-friendly)
+```
+Configure interval via `SCAN_INTERVAL_MINUTES` env var. Cron example:
+```
+*/15 * * * * cd /app && python scripts/runner.py --once >> /var/log/runner.log 2>&1
+```
+
+## Trade Journal
+
+- Every backtest can log trades with `log_journal: true`.
+- `GET /journal` returns recent trades + basic stats.
+- `POST /journal/{id}/notes` adds notes/tags.
+- Streamlit shows a journal section.
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,
