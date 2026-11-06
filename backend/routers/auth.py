@@ -39,7 +39,10 @@ def register(req: AuthRequest):
         raise HTTPException(status_code=400, detail="password too short")
     if get_user_by_username(req.username):
         raise HTTPException(status_code=400, detail="username already exists")
-    uid = create_user(req.username.strip(), hash_password(req.password))
+    from backend.db import count_users
+
+    role = "admin" if count_users() == 0 else "user"
+    uid = create_user(req.username.strip(), hash_password(req.password), role=role)
     # seed a default config for the new user
     try:
         from backend.config_store import load
@@ -63,4 +66,4 @@ def login(req: AuthRequest):
 
 @router.get("/me")
 def me(current_user=Depends(get_current_user)):
-    return {"id": current_user["id"], "username": current_user["username"]}
+    return {"id": current_user["id"], "username": current_user["username"], "role": current_user["role"]}

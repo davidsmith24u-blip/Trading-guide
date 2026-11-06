@@ -145,6 +145,13 @@ cp .env.example .env   # edit secrets
 docker compose up --build
 ```
 
+## Stage 4 additions
+
+- User roles: first registered user becomes `admin`; others `user`. Admin-only `GET /admin/stats`.
+- Multiple named configs per user: `GET/POST/DELETE /configs/saved` and `POST /configs/saved/{name}/activate`.
+- Streamlit sidebar lets users save/load/delete/switch saved configs.
+- Basic per-IP rate limiting (configurable via `RATE_LIMIT_PER_MINUTE`, default 120).
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,

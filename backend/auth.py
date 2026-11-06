@@ -58,3 +58,9 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer_scheme
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
+
+
+def require_admin(current_user=Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin only")
+    return current_user

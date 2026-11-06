@@ -12,7 +12,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.db import init_db
-from backend.routers import auth, backtest, config, ohlc, risk, signals
+from backend.rate_limit import RateLimitMiddleware
+from backend.routers import admin, auth, backtest, config, ohlc, risk, saved_configs, signals
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -38,11 +39,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(RateLimitMiddleware)
+
 app.include_router(auth.router, tags=["auth"])
 app.include_router(backtest.router, tags=["backtest"])
 app.include_router(signals.router, tags=["signals"])
 app.include_router(risk.router, tags=["risk"])
 app.include_router(config.router, tags=["config"])
+app.include_router(saved_configs.router, tags=["saved_configs"])
+app.include_router(admin.router, tags=["admin"])
 app.include_router(ohlc.router, tags=["ohlc"])
 
 logger.info("Trading Guardian API started")

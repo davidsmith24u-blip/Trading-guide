@@ -82,6 +82,57 @@ with st.sidebar:
     st.divider()
     chart_pair = st.selectbox("Chart pair", pairs_input if pairs_input else ["EURUSD"])
 
+# ---------- Saved configs ----------
+st.sidebar.divider()
+st.sidebar.subheader("Saved Configs")
+saved_names = []
+try:
+    r = requests.get(f"{API_BASE}/configs/saved", headers=api_headers(), timeout=5)
+    if r.ok:
+        saved_names = [x["name"] for x in r.json().get("items", [])]
+except Exception:
+    pass
+selected_saved = st.sidebar.selectbox("Load saved config", ["(none)"] + saved_names)
+colA, colB, colC = st.sidebar.columns(3)
+if colA.button("Load") and selected_saved != "(none)":
+    try:
+        r = requests.post(f"{API_BASE}/configs/saved/{selected_saved}/activate", headers=api_headers(), timeout=5)
+        if r.ok:
+            st.success(f"Activated {selected_saved}")
+            st.rerun()
+    except Exception as e:
+        st.error(str(e))
+save_name = st.sidebar.text_input("Save current as")
+if colB.button("Save") and save_name.strip():
+    try:
+        r = requests.post(f"{API_BASE}/configs/saved", json={"name": save_name.strip()}, headers=api_headers(), timeout=5)
+        if r.ok:
+            st.success(f"Saved {save_name}")
+            st.rerun()
+    except Exception as e:
+        st.error(str(e))
+if colC.button("Delete") and selected_saved != "(none)":
+    try:
+        r = requests.delete(f"{API_BASE}/configs/saved/{selected_saved}", headers=api_headers(), timeout=5)
+        if r.ok:
+            st.success(f"Deleted {selected_saved}")
+            st.rerun()
+    except Exception as e:
+        st.error(str(e))
+
+# Admin stats (optional)
+try:
+    me = requests.get(f"{API_BASE}/me", headers=api_headers(), timeout=5)
+    if me.ok and me.json().get("role") == "admin":
+        st.sidebar.divider()
+        st.sidebar.subheader("Admin")
+        stt = requests.get(f"{API_BASE}/admin/stats", headers=api_headers(), timeout=5)
+        if stt.ok:
+            s = stt.json()
+            st.sidebar.write(f"Users: {s['users']} | Configs: {s['active_configs']} | Saved: {s['saved_configs']}")
+except Exception:
+    pass
+
 # sync config
 try:
     requests.post(
