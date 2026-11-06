@@ -45,6 +45,25 @@ def load_csv(path: str) -> pd.DataFrame:
     return validate_ohlcv(df)
 
 
+def from_yfinance_range(pair: str, start: str, end: str, interval: str = "15m") -> pd.DataFrame:
+    """Fetch via yfinance between start/end dates."""
+    try:
+        import yfinance as yf
+    except ImportError as e:
+        raise RuntimeError("yfinance not installed") from e
+    ticker = pair
+    if pair.endswith("USD") and len(pair) == 6 and pair not in ("XAUUSD",):
+        ticker = pair[:3] + pair[3:] + "=X"
+    df = yf.download(ticker, start=start, end=end, interval=interval, auto_adjust=True, progress=False)
+    if df is None or df.empty:
+        raise RuntimeError(f"no data for {pair}")
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0].lower() for c in df.columns]
+    else:
+        df.columns = [c.lower() for c in df.columns]
+    return validate_ohlcv(df)
+
+
 def from_yfinance(pair: str, period: str = "60d", interval: str = "15m") -> pd.DataFrame:
     """Fetch via yfinance. Forex pairs use =X suffix; XAU uses GC=F-ish (approx)."""
     try:

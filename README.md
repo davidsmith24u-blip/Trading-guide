@@ -99,6 +99,32 @@ Wire a real broker adapter before any live use.
 pytest -q
 ```
 
+## Stage 2 — FastAPI backend + Streamlit frontend
+
+### Run backend
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+Docs: http://localhost:8000/docs
+
+### Run frontend
+```bash
+streamlit run frontend/app.py
+```
+Dashboard: http://localhost:8501 (assumes backend on localhost:8000)
+
+### Run both with Docker
+```bash
+docker compose up --build
+```
+
+### API endpoints
+- `POST /backtest` — metrics, equity curve, trades
+- `GET /signals?pairs=EURUSD,GBPUSD` — current BUY/SELL/HOLD signals
+- `GET /risk-status` — equity, drawdowns, cooldown, allowed flag
+- `GET /config`, `POST /config` — read/update configuration
+- `GET /ohlc` — OHLC bars for charting
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,
