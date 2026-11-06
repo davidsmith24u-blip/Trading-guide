@@ -1,0 +1,13 @@
+# Example Cloudflare Tunnel config for exposing the Trading Guardian
+# Run on the VPS where docker compose is running.
+# See: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /root/.cloudflared/<YOUR_TUNNEL_ID>.json
+
+ingress:
+  - hostname: api.yourdomain.com
+    service: http://localhost:8000
+  - hostname: app.yourdomain.com
+    service: http://localhost:8501
+  - service: http_status:404

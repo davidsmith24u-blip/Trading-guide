@@ -193,6 +193,41 @@ Backend: http://localhost:8000  Frontend: http://localhost:8501
    - Backend: `SECRET_KEY`, `ENVIRONMENT=production`, `CORS_ORIGINS=https://<frontend-domain>`
    - Frontend: `API_BASE=https://<backend-domain>`
 
+### Deploy to Cloudflare (Tunnel on a VPS)
+
+Cloudflare cannot run Docker containers or Streamlit directly, but you can expose
+a VPS deployment securely with a Cloudflare Tunnel (no open ports).
+
+1. Deploy on a VPS with Docker Compose (see above).
+2. Install cloudflared on the VPS:
+   ```bash
+   curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+   chmod +x /usr/local/bin/cloudflared
+   ```
+3. Authenticate and create a tunnel:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create trading-guardian
+   ```
+4. Copy `cloudflared-config.example.yml` to `~/.cloudflared/config.yml`, fill in
+   your tunnel ID and hostname, then route DNS:
+   ```bash
+   cloudflared tunnel route dns trading-guardian api.yourdomain.com
+   cloudflared tunnel route dns trading-guardian app.yourdomain.com
+   ```
+5. Run the tunnel:
+   ```bash
+   cloudflared tunnel run trading-guardian
+   ```
+   (Or install as a service: `cloudflared service install`.)
+
+Set environment variables so the frontend talks to the public backend:
+- Backend: `CORS_ORIGINS=https://app.yourdomain.com`
+- Frontend: `API_BASE=https://api.yourdomain.com`
+
+Note: Keep SQLite on the VPS (persistent disk). Cloudflare Workers/Pages are not
+suitable for this app because it needs a long-running Python process and a DB.
+
 ### Deploy to a VPS with Docker Compose
 ```bash
 git clone <your-repo>
