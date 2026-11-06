@@ -86,6 +86,7 @@ with st.sidebar:
     col1, col2 = st.columns(2)
     run_bt = col1.button("Run Backtest")
     refresh_sig = col2.button("Refresh Signals")
+    auto_refresh = st.sidebar.checkbox("Auto-refresh (60s)", value=False)
     st.divider()
     chart_pair = st.selectbox("Chart pair", pairs_input if pairs_input else ["EURUSD"])
 
@@ -318,6 +319,12 @@ try:
             st.dataframe(jdf, use_container_width=True, hide_index=True)
 except Exception as e:
     st.info(f"Journal unavailable: {e}")
+
+if auto_refresh:
+    import time
+
+    time.sleep(60)
+    st.rerun()
 
 # Candlestick
 st.subheader(f"Candlestick — {chart_pair}")

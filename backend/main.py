@@ -115,3 +115,15 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok", "environment": ENVIRONMENT}
+
+
+@app.get("/metrics")
+def metrics():
+    # basic, dependency-free metrics
+    from backend.db import count_users, count_configs, count_saved_configs
+
+    return {
+        "users": count_users(),
+        "active_configs": count_configs(),
+        "saved_configs": count_saved_configs(),
+    }
