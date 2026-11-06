@@ -207,6 +207,15 @@ Put a reverse proxy (Caddy/Nginx) in front for HTTPS. Keep `SECRET_KEY` and Tele
 - Rotate `SECRET_KEY` to invalidate all sessions.
 - Store Telegram bot tokens only in environment variables, never in code or frontend.
 
+## Walk-Forward Testing
+
+Run rolling train/test windows:
+```bash
+python scripts/run_walk_forward.py
+python scripts/run_walk_forward.py --train-days 180 --test-days 60 --step-days 60
+```
+Or via API: `POST /walk-forward` and Streamlit button.
+
 ## Warnings
 
 - Backtests ignore real-world frictions imperfectly; always include spread,

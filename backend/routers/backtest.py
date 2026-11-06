@@ -14,8 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.auth import get_current_user
 from backend.config_store import apply_overrides, from_dict, to_dict
 from backend.db import get_user_config, set_user_config
-from backend.schemas import BacktestRequest, BacktestResponse, EquityPoint, TradeOut
+from backend.schemas import BacktestRequest, BacktestResponse, EquityPoint, TradeOut, WalkForwardRequest
 from src.backtest.engine import run_backtest
+from src.backtest.walk_forward import walk_forward
 from src.data.provider import from_yfinance_range, make_multi_tf_pair
 
 router = APIRouter()
@@ -94,5 +95,33 @@ def run_backtest_endpoint(req: BacktestRequest, current_user=Depends(get_current
         return BacktestResponse(
             metrics=m, equity_curve=equity_points, trades=trades, warning=PAPER_WARNING
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/walk-forward")
+def walk_forward_endpoint(req: WalkForwardRequest, current_user=Depends(get_current_user)):
+    try:
+        from backend.config_store import apply_overrides, from_dict, to_dict
+        from backend.db import get_user_config, set_user_config
+
+        user_cfg = get_user_config(current_user["id"])
+        if user_cfg is None:
+            from backend.config_store import load as load_global
+
+            user_cfg = to_dict(load_global())
+            set_user_config(current_user["id"], user_cfg)
+        cfg = from_dict(user_cfg)
+        if req.config_overrides:
+            cfg = apply_overrides(cfg, req.config_overrides)
+
+        pairs = req.pairs or cfg.pairs
+        data = {}
+        for pair in pairs:
+            trend, entry = _fetch_frames(pair, cfg, req)
+            data[pair] = {"trend": trend, "entry": entry}
+
+        result = walk_forward(data, cfg, req.train_days, req.test_days, req.step_days)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

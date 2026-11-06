@@ -254,6 +254,40 @@ if bt:
         st.dataframe(tdf, use_container_width=True, hide_index=True)
     st.warning(bt.get("warning", PAPER_WARNING))
 
+# Walk-Forward
+st.subheader("Walk-Forward Analysis")
+if st.button("Run Walk-Forward"):
+    with st.spinner("Running walk-forward..."):
+        payload = {
+            "pairs": pairs_input,
+            "n_bars": int(n_bars),
+            "train_days": 180,
+            "test_days": 60,
+            "step_days": 60,
+            "config_overrides": {
+                "account": {
+                    "risk_per_trade_pct": risk_pct,
+                    "max_daily_drawdown_pct": daily_dd,
+                    "max_weekly_drawdown_pct": weekly_dd,
+                }
+            },
+        }
+        try:
+            r = requests.post(f"{API_BASE}/walk-forward", json=payload, headers=api_headers(), timeout=300)
+            if r.ok:
+                st.session_state["wf"] = r.json()
+            else:
+                st.error(r.text)
+        except Exception as e:
+            st.error(str(e))
+
+wf = st.session_state.get("wf")
+if wf:
+    st.write("Out-of-sample aggregate:")
+    st.json(wf.get("aggregate_oos", {}))
+    st.write("Consistency:")
+    st.json(wf.get("consistency", {}))
+
 # Candlestick
 st.subheader(f"Candlestick — {chart_pair}")
 try:

@@ -73,5 +73,16 @@ class RiskStatusResponse(BaseModel):
     open_positions_count: int = 0
 
 
+class WalkForwardRequest(BaseModel):
+    pairs: List[str] = Field(default_factory=lambda: ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"])
+    start: Optional[str] = None
+    end: Optional[str] = None
+    n_bars: Optional[int] = None
+    train_days: int = 180
+    test_days: int = 60
+    step_days: int = 60
+    config_overrides: Optional[Dict[str, Any]] = None
+
+
 class ConfigResponse(BaseModel):
     config: Dict[str, Any]
